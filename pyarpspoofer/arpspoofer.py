@@ -185,11 +185,34 @@ class PacketIntercept(threading.Thread):
 class ArpSpoofer():
 
     def __init__(self, network_address, interface, mac_address, ip_address):
-        if is_python_2():
-            self._network_address = ipaddress.ip_network(unicode(network_address))
-        else:
-            self._network_address = ipaddress.ip_network(network_address)
 
+        self._target_addresses = []
+
+        # Check for a range
+        if "-" in network_address:
+            parts = network_address.split("-")
+            start_ip = ipaddress.ip_address(parts[0])
+            last_octet = int(start_ip.exploded.split(".")[3])
+            range_end = int(parts[1])
+            counter = last_octet
+            offset = 0
+            while counter <= range_end:
+                self._target_addresses.append(start_ip+offset)
+                counter += 1
+                offset += 1
+        # Assume its a network with a mask
+        else:
+            
+            network_address = None
+            if is_python_2():
+                network_address = ipaddress.ip_network(unicode(network_address))
+            else:
+                network_address = ipaddress.ip_network(network_address)
+
+            for host in network_address.hosts():
+                self._target_addresses.append(host) 
+
+        # Parse the source IP
         if is_python_2():
             self._ip = ipaddress.ip_address(unicode(ip_address))
         else:
@@ -220,7 +243,7 @@ class ArpSpoofer():
 
         all_hosts = []
 
-        for host in self._network_address.hosts():
+        for host in self._target_addresses:
             if host == self._ip:
                 print("! - Skipping self at " + str(self._ip))
                 continue
@@ -239,7 +262,7 @@ class ArpSpoofer():
 
         free_ip = all_hosts[len(all_hosts)-1]
 
-        for host in self._network_address.hosts():
+        for host in self._target_addresses:
             if str(host) not in self._ip_map:
                 free_ip = str(host)
                 break
@@ -276,55 +299,3 @@ class ArpSpoofer():
         if self._intecept:
             self._intecept.stop_processing()
             self._intecept.join()
-
-
-
-if __name__ == '__main__':
-    import argparse
-    import signal 
-
-    parser = argparse.ArgumentParser(description='Scriptable ARP Spoofing')
-    parser.add_argument('--network_address', '-n', help='The network address')
-    parser.add_argument('--interface', '-i', help='The interface to use')
-    parser.add_argument('--mac', '-m', help='The MAC to spoof (usually our MAC)')
-    parser.add_argument('--ip', '-p', help='The IP to use (usually our IP)')
-
-    args = parser.parse_args()
-
-    if args.network_address == None:
-        print("No network set")
-        sys.exit(1)
-
-    if args.interface == None:
-        print("No interface set")
-        sys.exit(1)
-
-    if args.mac == None:
-        print("No mac set")
-        sys.exit(1)
-
-    if args.ip == None:
-        print("No ip set")
-        sys.exit(1)
-
-    spoofer = SarpSpoof(args.network_address, args.interface, args.mac, args.ip)
-
-    def signal_handler(signal, frame):
-        print("")
-        spoofer.stop_spoof()
-        sys.exit(1)
-        
-
-        
-    signal.signal(signal.SIGINT, signal_handler)
-
-    def print_pkt(pkt):
-        pkt.show()
-        return pkt
-
-    spoofer.start_spoof(on_packet=print_pkt)
-
-    while True:
-        time.sleep(3)
-
-    

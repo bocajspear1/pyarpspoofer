@@ -64,8 +64,8 @@ def signal_handler(signal, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 def print_pkt(pkt):
-    pkt.show()
-    return pkt
+    print(pkt[Ether].src)
+    return False
 
 spoofer.start_spoof(on_packet=print_pkt)
 

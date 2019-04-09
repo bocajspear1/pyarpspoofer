@@ -15,6 +15,13 @@ Should work with Python 2 and 3
 python3 demo.py -n <LOCAL_NETWORK> -i eth0 -m <LOCAL_MAC> -p <LOCAL_IP>
 ```
 
+# Blocking Redirects
+
+You may need to block ICMP redirects:
+```
+iptables -A OUTPUT -p icmp --icmp-type redirect -j DROP
+```
+
 # Intecepting Packets
 
 Packets are passed to the function set with `on_packet` with the `start_spoofing` method. It has one parameter, which is the Scapy packet. To drop the packet, return `False`, otherwise, return the packet and the spoofer will take care of setting the MAC. (So don't change the MAC in the `on_packet` method)
